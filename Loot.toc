@@ -1,13 +1,38 @@
-## Interface: 70300
+## Interface: 90002
 ## Title: Loot
-## Author: Neum
-## Version: 0.1
+## Author: Neum - Twisting Nether
+## Version: 9.0.2
 ## SavedVariables: LootDB
 ## SavedVariablesPerCharacter: LootPerCharacterDB
 
-Frames/Debugger.lua
-Frames/StartupDialogue.lua
-Frames/LootRoll.lua
-Frames/LootSession.lua
-Frames/LootSessionManager.lua
-Loot.lua
+#@no-lib-strip@
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.xml
+Libs\LibDBIcon-1.0\LibDBIcon-1.0.xml
+Libs\AceAddon-3.0\AceAddon-3.0.xml
+Libs\AceGUI-3.0\AceGUI-3.0.xml
+Libs\AceConfigRegistry-3.0\AceConfigRegistry-3.0.xml
+Libs\AceConfigCmd-3.0\AceConfigCmd-3.0.xml
+Libs\AceConfigDialog-3.0\AceConfigDialog-3.0.xml
+Libs\AceConfig-3.0\AceConfig-3.0.xml
+Libs\AceBucket-3.0\AceBucket-3.0.xml
+Libs\AceComm-3.0\AceComm-3.0.xml
+Libs\AceConsole-3.0\AceConsole-3.0.xml
+Libs\AceDB-3.0\AceDB-3.0.xml
+Libs\AceDBOptions-3.0\AceDBOptions-3.0.xml
+Libs\AceEvent-3.0\AceEvent-3.0.xml
+Libs\AceHook-3.0\AceHook-3.0.xml
+Libs\AceLocale-3.0\AceLocale-3.0.xml
+Libs\AceSerializer-3.0\AceSerializer-3.0.xml
+Libs\AceTab-3.0\AceTab-3.0.xml
+Libs\AceTimer-3.0\AceTimer-3.0.xml
+#@end-no-lib-strip@
+
+Modules\ChatMessages.lua
+Modules\Player.lua
+Modules\ItemTooltip.lua
+Modules\Iterators.lua
+Modules\LootItem.lua
+Modules\LootSession.lua
+Modules\RaidData.lua
