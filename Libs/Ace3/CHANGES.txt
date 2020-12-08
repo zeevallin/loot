@@ -1,0 +1,14 @@
+------------------------------------------------------------------------
+r1243 | nevcairiel | 2020-10-18 00:00:19 +0000 (Sun, 18 Oct 2020) | 1 line
+Changed paths:
+   M /trunk/AceHook-3.0/AceHook-3.0.lua
+
+AceHook-3.0: Allow UnhookAll to be used without embedding (Fixes #558)
+------------------------------------------------------------------------
+r1242 | nevcairiel | 2020-10-17 07:10:47 +0000 (Sat, 17 Oct 2020) | 1 line
+Changed paths:
+   M /trunk/Ace3.toc
+
+Include the project version in the main TOC to identify packages more easily
+------------------------------------------------------------------------
+
