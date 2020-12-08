@@ -1,13 +1,14 @@
 LootSession = {}
 LootSession.__index = LootSession
 
-function LootSession:new(item, duration)
+function LootSession:new(item, duration, whitelist)
     local self = {}
     setmetatable(self, LootSession)
     self.id = time()
     self.item = item
     self.rolls = {}
     self.players = {}
+    self.whitelist = whitelist or {}
     self.duration = duration
     self.counter = duration
     self.tick = 0
@@ -50,7 +51,7 @@ function LootSession:Begin()
     self.counter = self.duration
 
     if self.onBegin then
-        self:onBegin()
+        self:onBegin(self.whitelist)
     end
 
     self.ticker = C_Timer.NewTicker(1, function()
@@ -66,6 +67,17 @@ function LootSession:Begin()
             self:onDone(self:GetWinners())
         end
     end)
+end
+
+function LootSession:GetAllResults()
+    local players = {}
+    for fqname, value in pairs(self.rolls) do
+        players[#players+1] = {
+            ["player"] = Player:load(self.players[fqname] or {}),
+            ["value"] = value,
+        }
+    end
+    return players
 end
 
 function LootSession:GetWinners()
@@ -96,11 +108,28 @@ function LootSession:GetWinners()
 end
 
 function LootSession:AddRoll(player, value)
+    -- Blocks previous rollers from rolling again.
     if self.rolls[player.fqname] then
         return
     end
+    -- Make sure only whitelisted rollers are able to roll
+    local allowed = true
+    if self.whitelist ~= nil and table.getn(self.whitelist) > 0 then
+        allowed = false
+        for _, wlplayer in ipairs(self.whitelist) do
+            if wlplayer.fqname == player.fqname then
+                allowed = true
+                break
+            end
+        end
+    end
+    if not allowed then
+        return
+    end
+
     self.players[player.fqname] = player
     self.rolls[player.fqname] = value
+
     if self.onRoll then
         self:onRoll(player, value)
     end
