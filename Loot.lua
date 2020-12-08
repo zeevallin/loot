@@ -1,118 +1,1182 @@
-local LootAddOn_Version = "0.0.1"
+local ADDON_VERSION = "9.0.2"
+local ADDON_DB_NAME = "LootDB"
+local ADDON_DEFAULTS = {
+    profile = {
+        enable = true,
+        debug = false,
+        test = false,
+        session = {
+            duration = 10,
+            maxroll = 100,
+            minroll = 1,
+            selfroll = false
+        },
+        minimap = {
+            hide = false
+        },
+        zones = {
+            raid = true,
+            party = true
+        },
+        windows = {
+            main = {},
+            session = {}
+        },
+        encounter = {
+            auto = false
+        },
+        encounters = {
+            ["2418"] = { -- Huntsman Altimor
+                ["R"] = false,
+                ["N"] = true,
+                ["H"] = true,
+                ["M"] = true
+            },
+            ["2417"] = { -- Stone Legion Generals
+                ["R"] = false,
+                ["N"] = true,
+                ["H"] = true,
+                ["M"] = true
+            },
+            ["2412"] = { -- The Council of Blood
+                ["R"] = false,
+                ["N"] = true,
+                ["H"] = true,
+                ["M"] = true
+            },
+            ["2407"] = { -- Sire Denathrius
+                ["R"] = false,
+                ["N"] = true,
+                ["H"] = true,
+                ["M"] = true
+            },
+            ["2406"] = { -- Lady Inerva Darkvein
+                ["R"] = false,
+                ["N"] = true,
+                ["H"] = true,
+                ["M"] = true
+            },
+            ["2405"] = { -- Artificer Xy'mox
+                ["R"] = false,
+                ["N"] = true,
+                ["H"] = true,
+                ["M"] = true
+            },
+            ["2402"] = { -- Sun King's Salvation
+                ["R"] = false,
+                ["N"] = true,
+                ["H"] = true,
+                ["M"] = true
+            },
+            ["2399"] = { -- Sludgefist
+                ["R"] = false,
+                ["N"] = true,
+                ["H"] = true,
+                ["M"] = true
+            },
+            ["2398"] = { -- Shriekwing
+                ["R"] = false,
+                ["N"] = true,
+                ["H"] = true,
+                ["M"] = true
+            },
+            ["2383"] = { -- Hungering Destroyer
+                ["R"] = false,
+                ["N"] = true,
+                ["H"] = true,
+                ["M"] = true
+            }
+        }
+    },
+    char = {},
+    global = {
+        retention = {
+            current = {
+                hours = 2
+            },
+            previous = {
+                hours = 12
+            },
+        },
+        roll = nil,
+        items = {},
+        sessions = {}
+    }
+}
 
-LootAddOn = {}
-LootAddOn.__index = LootAddOn
-function LootAddOn:new(opts)
-    opts = opts or {}
-    addon = {}
-    setmetatable(addon, self)
-    addon.debug = opts["debug"] or false
-    addon.version = opts["version"] or "0.0.0"
-    frame = CreateFrame("Frame", "LOOT_ADDON_FRAME", UIParent)
-    frame:SetScript("OnEvent", function(self, event, msg, ...) self[event](self, msg, ...) end)
+-- Setup a variety of assets being used by this addon.
+local ADDON_BROKER_ICON_ACTIVE = "Interface/Icons/INV_Misc_HearthstoneCard_Legendary"
+local ADDON_BROKER_ICON_INACTIVE = "Interface/Icons/INV_Misc_HearthstoneCard_Common"
 
-    local this = self
+local READY_CHECK_WAITING_TEXTURE = "Interface/RaidFrame/ReadyCheck-Waiting"
+local READY_CHECK_READY_TEXTURE = "Interface/RaidFrame/ReadyCheck-Ready"
+local READY_CHECK_NOT_READY_TEXTURE = "Interface/RaidFrame/ReadyCheck-NotReady"
 
-    function frame:PLAYER_LOGIN()
-        addon:Start()
+-- Load the dependencies for this addon.
+local AceGUI = LibStub("AceGUI-3.0")
+local AceEvent = LibStub("AceEvent-3.0")
+local AceConfig = LibStub("AceConfig-3.0")
+
+-- Construct the addon with embeded plugins.
+local Addon = LibStub("AceAddon-3.0"):NewAddon("Loot",
+    "AceConsole-3.0", -- Used for the slash command
+    "AceTimer-3.0", -- Used for the loot rolls
+    "AceEvent-3.0" -- Used for internal addon communication
+)
+
+-- This function is used to print debug information from the addon when in debug mode.
+function Addon:Debug(message, ...)
+    if self.db.profile.debug then
+        self:Printf(message, ...)
     end
+end
 
-    function frame:RAID_INSTANCE_WELCOME()
-        if IsInRaid() then
-            addon.startupDialogueFrame:Show()
+function Addon:OnInitialize()
+    self.db = LibStub("AceDB-3.0"):New(ADDON_DB_NAME, ADDON_DEFAULTS, true)
+    self.icon = LibStub("LibDBIcon-1.0")
+    self.broker = LibStub("LibDataBroker-1.1"):NewDataObject("Loot", {
+        type = "data source",
+        text = "Loot",
+        icon = ADDON_BROKER_ICON_INACTIVE,
+        OnClick = function(event, button)
+            local options = {
+                ["LeftButton"] = function() self:SendMessage("ADDON_LOOT_UI_ACTION_SHOW_WINDOW") end, -- TODO: Implement toggle for showing and hiding the window.
+                ["RightButton"] = function() self:SendMessage("ADDON_LOOT_UI_ACTION_SHOW_OPTIONS") end
+            }
+            if options[button] then options[button]() end
+        end,
+        OnTooltipShow = function(tooltip)
+            tooltip:SetText("Loot")
+            tooltip:AddLine("Tracking and assisting personal loot sharing", 1, 1, 1)
+            tooltip:AddDoubleLine("Left click", "Toggle loot manager window")
+            tooltip:AddDoubleLine("Right click", "Open addon configuration")
+            tooltip:Show()
         end
-    end
+    })
 
-    function frame:PLAYER_ENTERING_WORLD()
-        addon.startupDialogueFrame:Show()
-    end
+    local profiles = LibStub('AceDBOptions-3.0'):GetOptionsTable(self.db)
+    profiles.order = -1
+    profiles.disabled = false
 
-    function frame:INSTANCE_ENCOUNTER_ENGAGE_UNIT()
-        addon.state["is_in_raid_combat"] = true
-    end
-
-    function frame:PLAYER_REGEN_ENABLED()
-        if addon.state["is_in_raid_combat"] and addon.state["has_enabled_addon_for_session"] then
-            addon:OpenLootSessionManager()
-        end
-        addon.state["is_in_raid_combat"] = false
-    end
-
-    addon.frame = frame
-    addon.state = {
-        ["is_in_raid_combat"] = false,
-        ["has_chosen_to_enable_or_disable"] = false,
-        ["has_enabled_addon_for_session"] = false,
+    self.profiles = profiles
+    self.options = {
+        type = "group",
+        name = "Loot",
+        args = {
+            enable = {
+                name = "Enable",
+                desc = "Toggle to disable or enable the addon completely",
+                descStyle = "inline",
+                width = "double",
+                type = "toggle",
+                order = 1,
+                set = function(info, val)
+                    self.db.profile.enable = val
+                    if val then
+                        self:Enable()
+                    else
+                        self:Disable()
+                    end
+                end,
+                get = function(info)
+                    return self.db.profile.enable
+                end
+            },
+            debug = {
+                name = "Debug",
+                desc = "Toggle to disable or enable debug messages in the chat window",
+                descStyle = "inline",
+                width = "double",
+                type = "toggle",
+                order = 2,
+                set = function(info, val) self.db.profile.debug = val end,
+                get = function(info) return self.db.profile.debug end,
+                disabled = function(options) return not self.db.profile.enable end
+            },
+            icon = {
+                name = "Hide Minimap Icon",
+                desc = "Toggle the visibility of the addon map icon",
+                descStyle = "inline",
+                width = "double",
+                type = "toggle",
+                order = 3,
+                set = function(info, val)
+                    self.db.profile.minimap.hide = val
+                    if val then
+                        self.icon:Hide("Loot")
+                    elseif self.db.profile.enable then
+                        self.icon:Show("Loot")
+                    end
+                end,
+                get = function(info)
+                    return self.db.profile.minimap.hide
+                end,
+                disabled = function(options) return not self.db.profile.enable end
+            },
+            test = {
+                name = "Activate Test Mode",
+                desc = "Toggle the test mode on or off, this will cause items from your bags to all appear in the UI",
+                descStyle = "inline",
+                width = "double",
+                type = "toggle",
+                order = 4,
+                set = function(info, val) self.db.profile.test = val end,
+                get = function(info) return self.db.profile.test end,
+                disabled = function(options) return not self.db.profile.enable end
+            }
+        }
     }
 
-    return addon
+    self.sessionconfig = {
+        type = "group",
+        name = "Roll Sessions",
+        args = {
+            selfroll = {
+                name = "Allow rolling for own items",
+                desc = "Toggle on or off to enable the person to roll for their own items",
+                descStyle = "inline",
+                width = "double",
+                type = "toggle",
+                order = 4,
+                set = function(info, val) self.db.profile.session.selfroll = val end,
+                get = function(info) return self.db.profile.session.selfroll end
+            },
+        },
+    }
+
+    self.retentionconfig = {
+        type = "group",
+        name = "Data Retention",
+        args = {
+            proposed = {
+                name = "Currently Proposed Items",
+                desc = "The amount of hours currently proposed items should be kept",
+                width = "double",
+                type = "range",
+                order = 4,
+                step = 1,
+                min = 1,
+                max = 48,
+                set = function(info, val) self.db.global.retention.current.hours = val end,
+                get = function(info) return self.db.global.retention.current.hours end,
+            },
+            previous = {
+                name = "Previous Roll Results",
+                desc = "The amount of hours previous roll results should be kept",
+                width = "double",
+                type = "range",
+                order = 4,
+                step = 1,
+                min = 1,
+                max = 48,
+                set = function(info, val) self.db.global.retention.previous.hours = val end,
+                get = function(info) return self.db.global.retention.previous.hours end,
+            }
+        }
+    }
+
+    local getEncounterState = function(encounterID, difficulty)
+        local encounter = self.db.profile.encounters[encounterID] or {}
+        return encounter[difficulty] or false
+    end
+    local setEncounterState = function(encounterID, difficulty, value)
+        if not self.db.profile.encounter.auto then
+            return nil
+        end
+        local encounter = self.db.profile.encounters[encounterID] or {}
+        encounter[difficulty] = value
+        self.db.profile.encounters[encounterID] = encounter
+    end
+
+    local instances = {
+        enable = {
+            name = "Enable Automatic Sessions",
+            desc = "Automatically start a loot session after a raid encounter has been successfully completed.",
+            descStyle = "inline",
+            width = "full",
+            type = "toggle",
+            order = 1,
+            set = function(options, value) self.db.profile.encounter.auto = value end,
+            get = function(options) return self.db.profile.encounter.auto end
+        }
+    }
+    for i, instance in ipairs(RAID_INSTANCES) do
+        local encounters = {}
+        for j, encounter in ipairs(instance.encounters) do
+            local difficulties = {}
+            for k, difficulty in ipairs(encounter.difficulties) do
+                difficulties[difficulty] = {
+                    name = RAID_DIFFICULTIES[difficulty],
+                    width = "half",
+                    type = "toggle",
+                    order = k+1,
+                    disabled = function(options) return not self.db.profile.encounter.auto end,
+                    set = function(options, value) return setEncounterState(encounter.id, difficulty, value) end,
+                    get = function(options) return getEncounterState(encounter.id, difficulty) end
+                }
+            end
+
+            encounters[encounter.id] = {
+                type = "group",
+                name = encounter.name,
+                order = j+1,
+                inline = true,
+                args = difficulties
+            }
+        end
+    
+        instances[instance.id] = {
+            type = "group",
+            name = instance.name,
+            order = i+2,
+            args = encounters
+        }
+    end
+
+    self.encounters = {
+        type = "group",
+        name = "Raid Encounters",
+        descStyle = "inline",
+        args = instances
+    }
+    
+
+    -- Set up some common state variables
+    self.is_in_party_or_raid = false
+
+    -- Setup the items cache
+    self.items = {}
+
+    -- Register a blizzard addon configuration frame for general addon configuration.
+    AceConfig:RegisterOptionsTable("LootOptions", self.options, {"lc"})
+    self.optionsframe = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("LootOptions", "Loot", nil)
+
+    -- Register a blizzard addon configuration frame for enabling different encounters.
+    AceConfig:RegisterOptionsTable("LootSession", self.sessionconfig, {"lcs"})
+    self.sessionconfigframe = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("LootSession", "Roll Sessions", "Loot")
+
+    -- Register a blizzard addon configuration frame for enabling different encounters.
+    AceConfig:RegisterOptionsTable("LootRetention", self.retentionconfig, {"lch"})
+    self.retentionconfigframe = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("LootRetention", "Data Rentention", "Loot")
+
+    -- Register a blizzard addon configuration frame for enabling different encounters.
+    AceConfig:RegisterOptionsTable("LootEncounters", self.encounters, {"lce"})
+    self.encountersframe = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("LootEncounters", "Raid Encounters", "Loot")
+
+    -- Register a blizzard addon configuration frame for switching profiles.
+    AceConfig:RegisterOptionsTable("LootProfiles", self.profiles, {"lcp"})
+    self.profileframe = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("LootProfiles", "Profiles", "Loot")
+    
+    -- Register "loot" and "l" as commands to use in the WoW chat to display the loot window.
+    self:RegisterChatCommand("l", function() self:SendMessage("ADDON_LOOT_UI_ACTION_SHOW_WINDOW") end)
+    self:RegisterChatCommand("loot", function() self:SendMessage("ADDON_LOOT_UI_ACTION_SHOW_WINDOW") end)
+
+    self.icon:Register("Loot", self.broker, self.db.profile.minimap)
 end
 
-function LootAddOn:Load()
-    self.frame:RegisterEvent("PLAYER_LOGIN")
-    self.frame:RegisterEvent("RAID_INSTANCE_WELCOME")
-    self.frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-    self.frame:RegisterEvent("INSTANCE_ENCOUNTER_ENGAGE_UNIT")
-    self.frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+function Addon:OnEnable()
+    -- Iterate over all bags and add the contents to the items array.
+    -- TODO: Make this a bit nicer to make sure the items are rendered on demand when test mode is disabled at runtime.
+    if self.db.profile.test then
+        self.items = {}
+        local player = Player:GetCurrent()
+        local i1 = 0
+        for i = 4, 0, -1 do
+            for i2 = GetContainerNumSlots(i), 0, -1 do
+                local link = select(7, GetContainerItemInfo(i,i2))
+                if link and (i1 < 100) then
+                    local item = LootItem:new(player, link)
+                    table.insert(self.items, item)
+                    i1 = i1+1
+                end
+            end
+        end
+    end
+
+    -- Clear out all sessions older than a set amount of hours when adodn loads.
+    -- TODO: Replace this with a losely coupled list of session IDs in sequential order that can be stored individually.
+    local t = time() -- Curent time in unix seconds
+    local maxlife = self.db.global.history.hours * 3600 -- Number of seconds since the oldest session allowed.
+    local sessions = {}
+    for id, sess in pairs(self.db.global.sessions) do
+        if (id+maxlife) > t then
+            sessions[id] = sess
+        end
+    end
+    self.db.global.sessions = sessions -- Write the pruned sessions to the database.
+
+    -- Make sure to show the minimap icon when the addon is enabled.
+    if not self.db.profile.minimap.hide then
+        self.icon:Show("Loot")
+    else
+        self.icon:Hide("Loot") -- Clean up just in case we have gotten ourselves into a dirty state
+    end
+
+    -- Create the main addon window.
+    self:CreateLootWindow()
+
+    -- Register all events
+    self:RegisterEvent("ZONE_CHANGED")
+    self:RegisterEvent("RAID_INSTANCE_WELCOME")
+    self:RegisterEvent("UPDATE_INSTANCE_INFO")
+    self:RegisterEvent("BOSS_KILL")
+    self:RegisterEvent("CHAT_MSG_SYSTEM")
+    self:RegisterEvent("CHAT_MSG_LOOT")
+    self:RegisterEvent("CHAT_MSG_WHISPER")
+
+    -- Register internal messagess
+    self:RegisterMessage("ADDON_LOOT_UI_ACTION_SHOW_WINDOW")
+    self:RegisterMessage("ADDON_LOOT_UI_ACTION_SHOW_OPTIONS")
+    self:RegisterMessage("ADDON_LOOT_UI_ACTION_DISCARD_ITEM")
+    self:RegisterMessage("ADDON_LOOT_UI_WINDOW_SHOW")
+    self:RegisterMessage("ADDON_LOOT_UI_WINDOW_CLOSE")
+    self:RegisterMessage("ADDON_LOOT_PLAYER_ROLL")
+    self:RegisterMessage("ADDON_LOOT_PLAYER_ITEM_ACQUIRED")
+    self:RegisterMessage("ADDON_LOOT_PLAYER_ITEM_SHARED")
+    self:RegisterMessage("ADDON_LOOT_SESSION_BEGIN")
+    self:RegisterMessage("ADDON_LOOT_SESSION_TICK")
+    self:RegisterMessage("ADDON_LOOT_SESSION_ROLL")
+    self:RegisterMessage("ADDON_LOOT_SESSION_END")
+    self:RegisterMessage("ADDON_LOOT_SESSION_END_ANNOUNCEMENT")
+    self:RegisterMessage("ADDON_LOOT_ITEM_DISCARDED")
+    self:RegisterMessage("ADDON_LOOT_ITEM_PROPOSED")
+
+    -- Request raid info to make sure we will know what instance we're in
+    RequestRaidInfo()
+
+    self:Debug(string.format("|cFFFF0000Enabling... (|cFFFFFFFF%s|cFFFF0000)", ADDON_VERSION))
 end
 
-function LootAddOn:Unload()
-    self.frame:UnregisterEvent("PLAYER_LOGIN")
-    self.frame:UnregisterEvent("RAID_INSTANCE_WELCOME")
-    self.frame:UnregisterEvent("PLAYER_ENTERING_WORLD")
-    self.frame:UnregisterEvent("INSTANCE_ENCOUNTER_ENGAGE_UNIT")
-    self.frame:UnregisterEvent("PLAYER_REGEN_ENABLED")
+function Addon:OnDisable()
+    -- Hide the main addon window.
+    self.window:Hide()
+
+    -- Make sure to always hide the minimap icon when the addon is disabled.
+    self.icon:Hide("Loot")
+
+    self:Debug(string.format("|cFFFF0000Disabling... (|cFFFFFFFF%s|cFFFF0000)", ADDON_VERSION))
 end
 
-function LootAddOn:Start()
-    print(format("|cFFFF0000Loaded Loot (|cFFFFFFFF%s|cFFFF0000)", self.version))
+function Addon:Announce(message)
+    ableToRaidWarn = IsInRaid() and (UnitIsGroupAssistant("player") or UnitIsGroupLeader("player"))
+    ableToRaidChat = IsInRaid()
+    ableToPartyChat = UnitInParty("player")
 
-    self.startupDialogueFrame = BuildStartupDialogueFrame({
-        Debug = self.debug,
-        OnCancel = function()
-            self:DisableForSession()
-        end,
-        OnStart = function()
-            self:EnableForSession()
-        end,
+    if ableToRaidWarn then
+        SendChatMessage(message, "RAID_WARNING", nil)
+    elseif ableToRaidChat then
+        SendChatMessage(message, "RAID", nil)
+    elseif ableToPartyChat then
+        SendChatMessage(message, "PARTY", nil)
+    else
+        print(message)
+    end
+end
+
+function Addon:ZONE_CHANGED(event, ...)
+    -- Request raid info as soon as we enter the intance to make sure we know where we are by the end of an encounter.
+    RequestRaidInfo()
+end
+
+function Addon:RAID_INSTANCE_WELCOME(event, ...)
+    -- Request raid info as soon as we enter the intance to make sure we know where we are by the end of an encounter.
+    RequestRaidInfo()
+end
+
+function Addon:UPDATE_INSTANCE_INFO(event, ...)
+    -- Check if the current zone is somewhere we should start loot sessions.
+    local info = {GetInstanceInfo()}
+    local itype = info[2]
+    local difficultyID = info[3]
+    local raid = itype == "raid"
+    local party = itype == "party"
+
+    self["is_in_party_or_raid"] = (raid or party)
+    self["current_difficulty"] = "N" -- TODO: Actually derive the difficulty from the difficultyID
+    
+    self:Debug("updating instance info")
+end
+
+function Addon:BOSS_KILL(event, encounterID, encounterName)
+    self:Debug(string.format("defeated %s (%s)", encounterName, encounterID))
+    -- Only open the loot window if we're in a party or raid.
+    if self.is_in_party_or_raid then
+        self:Debug("opening loot window on encounter completion")
+        self:SendMessage("ADDON_LOOT_UI_ACTION_SHOW_WINDOW")
+    else
+        self:Debug("criteria for opening loot window not met (ignoring)")
+    end
+end
+
+function Addon:CHAT_MSG_SYSTEM(event, msg)
+    local ok, roll = ChatMessages:ParseRoll(msg)
+    if not ok then
+        self:Debug("cannot parse roll for: %s", msg)
+        return
+    end
+    local ok, player = Player:LookupByName(roll.name)
+    if not ok then
+        self:Debug("cannot get info for player from roll: %s", roll.name)
+        return
+    end
+    self:SendMessage("ADDON_LOOT_PLAYER_ROLL", player, roll)
+end
+
+function Addon:CHAT_MSG_LOOT(event, msg, name)
+    local ok, link = ChatMessages:ParseItemLink(msg)
+    if not ok then
+        self:Debug("could not parse link from loot drop: %s", msg)
+        return
+    end
+    local ok, player = Player:LookupByName(name)
+    if not ok then
+        self:Debug("cannot get info for player: %s", name)
+        return
+    end
+    self:SendMessage("ADDON_LOOT_PLAYER_ITEM_ACQUIRED", LootItem:new(player, link))
+end
+
+function Addon:CHAT_MSG_WHISPER(event, msg, name)
+    local ok, link = ChatMessages:ParseItemLink(msg)
+    if not ok then
+        self:Debug("could not parse link from whisper: %s", msg)
+        return
+    end
+    local ok, player = Player:LookupByName(name)
+    if not ok then
+        self:Debug("cannot get info for player: %s", name)
+        return
+    end
+    self:SendMessage("ADDON_LOOT_PLAYER_ITEM_SHARED", LootItem:new(player, link))
+end
+
+-- Used to show the main frame of the addon window.
+function Addon:ADDON_LOOT_UI_ACTION_SHOW_WINDOW(event)
+    if self.window ~= nil then
+        self:Debug("ui action to display main window")
+        self.window:Show()
+    else
+        self:Debug("ui action to display main window failed because the frame has not been constructed")
+    end
+end
+
+function Addon:ADDON_LOOT_UI_ACTION_SHOW_OPTIONS(event)
+    -- Needs to be called twice due to blizzard interface bug.
+    -- TODO: find out a more elegant way to get around this.
+    if self.optionsframe ~= nil then
+        self:Debug("ui action to display options window")
+        InterfaceOptionsFrame_OpenToCategory(self.optionsframe)
+        InterfaceOptionsFrame_OpenToCategory(self.optionsframe)
+    else
+        self:Debug("ui action to display options window failed because the frame has not been constructed")
+    end
+end
+
+-- Supposed to happen when an action is taken by the user to discard an item from the current list of shared items.
+function Addon:ADDON_LOOT_UI_ACTION_DISCARD_ITEM(event, item)
+    self:Debug("ui action to discard item %s (%d) from player %s ", item.link, item.id, item.player.fqname)
+    for idx, itm in ipairs(self.items) do
+        if itm.id == item.id then
+            table.remove(self.items, idx)
+            self:SendMessage("ADDON_LOOT_ITEM_DISCARDED", item)
+            break
+        end
+    end
+end
+
+-- Happens when the primary loot window opens.
+function Addon:ADDON_LOOT_UI_WINDOW_SHOW(event, window)
+    self:Debug("primary window is showing")
+    self.broker.icon = ADDON_BROKER_ICON_ACTIVE
+end
+
+-- Happens when the primary window for the loot addon is closed.
+function Addon:ADDON_LOOT_UI_WINDOW_CLOSE(window)
+    self:Debug("primary window is closing")
+    self.broker.icon = ADDON_BROKER_ICON_INACTIVE
+end
+
+function Addon:ADDON_LOOT_PLAYER_ROLL(event, player, roll)
+    if self.session == nil then
+        self:Debug("player %s rolled %d min() max(): loot session not active", player.fqname, roll.val, roll.min, roll.max)
+        return
+    end
+    if (player.fqname == self.session.item.player.fqname) and not self.db.profile.session.selfroll then
+        self:Debug("player %s rolled %d min(%d) max(%d): rolling for your own item is not allowed", player.fqname, roll.val, roll.min, roll.max)
+        return
+    end
+    local min, max = self.db.profile.session.minroll, self.db.profile.session.maxroll
+    if roll.max ~= max and roll.min ~= min then
+        self:Debug("player %s rolled %d min(%d) max(%d): roll does not match rules min(%d) max(%d)", player.fqname, roll.val, roll.min, roll.max, min, max)
+        return
+    end
+    self:Debug("player %s rolled %d min(%d) max(%d)", player.fqname, roll.val, roll.min, roll.max)
+    self.session:AddRoll(player, roll.val)
+end
+
+function Addon:ADDON_LOOT_PLAYER_ITEM_ACQUIRED(event, item)
+    self:Debug("player %s acquired %s (%d)", item.player.fqname, item.link, item.id)
+end
+
+function Addon:ADDON_LOOT_PLAYER_ITEM_SHARED(event, item)
+    self:Debug("player %s shared %s (%d)", item.player.fqname, item.link, item.id)
+    table.insert(self.items, item)
+end
+
+function Addon:ADDON_LOOT_SESSION_BEGIN(event, session, players)
+    self:Debug("session (%d) started (%d seconds) for %s from %s (%d)", session.id, session.duration, session.item.link, session.item.player.fqname, session.item.id)
+    self:Debug("session whitelist: %s", dump(players))
+    self:CreateSessionWindow(session)
+    self:Announce( string.format("Roll for %s ending in %d seconds", session.item.link, session.duration) )
+    if players ~= nil and table.getn(players) > 0 then
+        local names = {}
+        for _, player in ipairs(players) do
+            table.insert(names, player.name)
+        end
+        self:Announce( string.format("Only %s are able to roll", table.concat(names, " & ")) )
+    end
+end
+
+function Addon:ADDON_LOOT_SESSION_TICK(event, session)
+    self:Debug("session (%d) ticked (%d/%d seconds) for %s from %s (%d)", session.id, session.tick, session.duration, session.item.link, session.item.player.fqname, session.item.id)
+    local counter = session.duration - session.tick
+    if counter < 6 and counter > 0 then
+        self:Announce( string.format("%d seconds remain", counter) )
+    end
+end
+
+function Addon:ADDON_LOOT_SESSION_ROLL(event, session, player, value)
+    self:Debug("session (%d) for %s from %s (%d) received roll by %s (%d)", session.id, session.item.link, session.item.player.fqname, session.item.id, player.fqname, value)
+end
+
+function Addon:ADDON_LOOT_SESSION_END(event, session, winners)
+    self.db.global.sessions[session.id] = session
+    self:SendMessage("ADDON_LOOT_SESSION_END_ANNOUNCEMENT", session, winners)
+end
+
+function Addon:ADDON_LOOT_SESSION_END_ANNOUNCEMENT(event, session, winners)
+    local n = table.getn(winners)
+    local names = {}
+    for _, winner in pairs(winners) do
+        table.insert(names, winner.player.name)
+    end
+
+    local link = session.item.link
+    local giver = session.item.player.name
+    local receiver = table.concat(names, " & ")
+    if (n < 1) or (giver == receiver) then
+        self:Announce( string.format("%s keeps %s", giver, link) )
+    elseif n == 1 then
+        self:Announce( string.format("%s gives %s to %s", giver, link, receiver) )
+    elseif n > 1 then
+        self:Announce( string.format("There's a draw between %s", receiver) )
+        self:Announce( string.format("%s hold on to %s while they reroll", giver, link) )
+    end
+end
+
+function Addon:ADDON_LOOT_ITEM_DISCARDED(event, item)
+    self:Debug("item %s from player %s discarded (%d)", item.link, item.player.fqname, item.id)
+end
+
+function Addon:ADDON_LOOT_ITEM_PROPOSED(event, item, players)
+    self:Debug("item %s from player %s is being proposed to the group (%d)", item.link, item.player.fqname, item.id)
+    if self.session then
+        self:Debug("cannot start a new session while one is active")
+        return
+    end
+    self.session = LootSession:new(item, self.db.profile.session.duration, players)
+    self.session:OnRoll(function(session, player, value)
+        self:SendMessage("ADDON_LOOT_SESSION_ROLL", session, player, value)
+    end)   
+    self.session:OnBegin(function(session, whitelist)
+        self:SendMessage("ADDON_LOOT_SESSION_BEGIN", self.session, whitelist)
+    end)
+    self.session:OnEverySecond(function()
+        self:SendMessage("ADDON_LOOT_SESSION_TICK", self.session)
+    end)
+    self.session:OnDone(function(session, winners)
+        self:SendMessage("ADDON_LOOT_SESSION_END", session, winners)
+        self.session = nil
+    end)
+    self.session:Begin()
+end
+
+function Addon:CreateItemGroup(item)
+    local grp = AceGUI:Create("SimpleGroup")
+    AceEvent:Embed(grp)
+
+    grp:SetLayout("Flow")
+    grp:SetFullWidth(true)
+
+    grp:SetCallback("OnRelease", function(event)
+        grp:UnregisterAllMessages()
+    end)
+
+    local tex = select(10, GetItemInfo(item.link))
+    local ico = AceGUI:Create("Icon")
+    ico:SetWidth(50)
+    ico:SetImage(tex)
+    ico:SetImageSize(30, 30)
+    grp:AddChild(ico)
+
+    ItemTooltip:Embed(ico.frame, item.link)
+
+    local lbl = AceGUI:Create("Label")
+    lbl:SetText(item.link)
+    lbl:SetFontObject(GameFontHighlight)
+    lbl:SetWidth(260)
+    grp:AddChild(lbl)
+
+    ItemTooltip:Embed(lbl.frame, item.link)
+
+    local giver = item.player:NameWithClassColor()
+    local lbl = AceGUI:Create("Label")
+    lbl:SetText(giver)
+    lbl:SetFontObject(GameFontHighlight)
+    grp:AddChild(lbl)
+    lbl:SetWidth(120)
+    lbl:ClearAllPoints()
+    lbl:SetPoint("TOPRIGHT", grp.frame, "TOPLEFT")
+
+    grp:AddChild(self:CreateItemRollButton(item))
+    grp:AddChild(self:CreateItemDiscardButton(item))
+
+    grp:RegisterMessage("ADDON_LOOT_ITEM_DISCARDED", function(event, itm)
+        if itm.id == item.id then
+            grp:SendMessage("ADDON_LOOT_UI_ITEM_GROUP_RELEASED", grp)
+        end
+    end)
+    
+    return grp
+end
+
+function Addon:CreatePastLootSessionListGroup(id, session)
+    local grp = AceGUI:Create("SimpleGroup")
+    AceEvent:Embed(grp)
+
+    grp:SetLayout("Flow")
+    grp:SetFullWidth(true)
+
+    grp:SetCallback("OnRelease", function(event)
+        grp:UnregisterAllMessages()
+    end)
+
+    local item = session.item
+    local tex = select(10, GetItemInfo(item.link))
+    local ico = AceGUI:Create("Icon")
+    ico:SetWidth(50)
+    ico:SetImage(tex)
+    ico:SetImageSize(30, 30)
+    grp:AddChild(ico)
+
+    ItemTooltip:Embed(ico.frame, item.link)
+
+    local lbl = AceGUI:Create("Label")
+    lbl:SetText(item.link)
+    lbl:SetFontObject(GameFontHighlight)
+    lbl:SetWidth(260)
+    grp:AddChild(lbl)
+
+    ItemTooltip:Embed(lbl.frame, item.link)
+
+    local winners = session:GetWinners()
+    local n = table.getn(winners)
+
+    local selfroll = false
+    local names = {}
+    for _, winner in pairs(winners) do
+        if winner.player.fqname == session.item.player.fqname then
+            selfroll = true
+            break
+        end
+        local name = winner.player:NameWithClassColor()
+        table.insert(names, name)
+    end
+    local giver = session.item.player:NameWithClassColor()
+    local receiver = table.concat(names, " & ")
+    local lbl = AceGUI:Create("Label")
+    if (n < 1) or (selfroll) then
+        lbl:SetText(string.format("%s keeps item", giver))
+    elseif n == 1 then
+        lbl:SetText(string.format("%s gives item to %s", giver, receiver))
+    elseif n > 1 then
+        lbl:SetText(string.format("Draw between %s", receiver))
+    end
+    
+    lbl:SetFontObject(GameFontHighlight)
+    lbl.frame:SetScript('OnEnter', function()
+        GameTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
+        local iter = function(a, b) return a > b end
+        for _, result in Iterators:PairsByKeys(session:GetAllResults(), iter) do
+            GameTooltip:AddLine( string.format("%d %s", result.value, result.player:NameWithClassColor()), 255, 255, 255, true)
+        end
+        GameTooltip:Show()
+    end)
+    lbl.frame:SetScript('OnLeave', function()
+        GameTooltip:Hide()
+    end)
+    lbl:SetCallback("OnRelease", function(event)
+        lbl.frame:SetScript('OnEnter', function() end)
+        lbl.frame:SetScript('OnLeave', function() end)
+    end)
+
+    grp:AddChild(lbl)
+
+    return grp
+end
+
+function Addon:CreateItemRollButton(item)
+    local btn = AceGUI:Create("Button")
+    AceEvent:Embed(btn)
+
+    btn:SetText("Roll")
+    btn:SetWidth(90)
+    btn:SetDisabled(self.session ~= nil)
+
+    btn:SetCallback("OnRelease", function(event)
+        btn:UnregisterAllMessages()
+    end)
+
+    btn:SetCallback("OnClick", function(event)
+        btn:SendMessage("ADDON_LOOT_ITEM_PROPOSED", item, nil)
+        btn:SendMessage("ADDON_LOOT_UI_ACTION_DISCARD_ITEM", item)
+    end)
+
+    btn:RegisterMessage("ADDON_LOOT_SESSION_BEGIN", function(event, session, players)
+        btn:SetDisabled(true)
+    end)
+
+    btn:RegisterMessage("ADDON_LOOT_SESSION_END", function(event, session, winners)
+        btn:SetDisabled(false)
+    end)
+
+    return btn
+end
+
+function Addon:CreateItemDiscardButton(item)
+    local btn = AceGUI:Create("Button")
+    AceEvent:Embed(btn)
+
+    btn:SetText("Discard")
+    btn:SetWidth(90)
+
+    btn:SetCallback("OnRelease", function(event)
+        btn:UnregisterAllMessages()
+    end)
+
+    btn:SetCallback("OnClick", function(event)
+        btn:SendMessage("ADDON_LOOT_UI_ACTION_DISCARD_ITEM", item)
+    end)
+
+    return btn
+end
+
+function Addon:CreateSessionHistoryScrollFrame()
+    local scr = AceGUI:Create("ScrollFrame")
+    AceEvent:Embed(scr)
+
+    scr:SetLayout("List")
+
+    for id, session in Iterators:PairsByKeys(self.db.global.sessions, function(a, b)
+        return a > b
+    end) do
+        scr:AddChild(self:CreatePastLootSessionListGroup(id, LootSession:load(session)))
+    end
+
+    scr:SetCallback("OnRelease", function(event)
+        scr:UnregisterAllMessages()
+    end)
+
+    return scr
+end
+
+function Addon:CreateItemScrollFrame()
+    local widget = AceGUI:Create("ScrollFrame")
+    AceEvent:Embed(widget)
+
+    widget:SetLayout("List")
+    widget:PauseLayout()
+
+    local children = {}
+    for _, item in pairs(self.items) do
+        table.insert(children, self:CreateItemGroup(item))
+    end
+    widget:AddChildren(unpack(children))
+
+    widget:ResumeLayout()
+    widget:PerformLayout()
+
+    widget:SetCallback("OnRelease", function(event)
+        widget:UnregisterAllMessages()
+    end)
+
+    widget:RegisterMessage("ADDON_LOOT_PLAYER_ITEM_SHARED", function(event, item)
+        widget:PauseLayout()
+        widget:AddChild(self:CreateItemGroup(item))
+        widget:ResumeLayout()
+        widget:PerformLayout()
+        widget:FixScroll()
+    end)
+
+    widget:RegisterMessage("ADDON_LOOT_UI_ITEM_GROUP_RELEASED", function(event, grp)
+        local status = widget.status or widget.localstatus
+        local cur = status.scrollvalue
+
+        local children = {}
+        for i, child in ipairs(widget.children) do
+            if child == grp then
+                AceGUI:Release(child)
+            else
+                table.insert(children, child)
+            end
+            widget.children[i] = nil
+        end
+
+        widget:AddChildren(unpack(children))
+        widget:FixScroll()
+    end)
+
+    return widget
+end
+
+function Addon:CreateLootWindow()
+    local w = AceGUI:Create("Window")
+    w:SetTitle("Loot")
+    w:SetStatusTable(self.db.profile.windows.main)
+    w:EnableResize(false)
+    w:SetLayout("Fill")
+    w:SetHeight(500)
+
+    w:SetCallback("OnShow", function(widget)
+        self:SendMessage("ADDON_LOOT_UI_WINDOW_SHOW", widget)
+    end)
+
+    w:SetCallback("OnClose", function(widget)
+        self:SendMessage("ADDON_LOOT_UI_WINDOW_CLOSE", widget)
+    end)
+
+    local tab =  AceGUI:Create("TabGroup")
+    tab:SetLayout("Fill")
+    tab:SetTabs({
+        {
+            text = "Looted Items",
+            value = "items"
+        },
+        {
+            text = "Previous Rolls",
+            value = "sessions"
+        }
     })
 
-    self.lootSessionManagerFrame = BuildLootSessionManagerFrame({
-        Debug = self.debug,
-        State = self.state,
-    })
+    tab:SetCallback("OnGroupSelected", function(widget, event, group)
+        widget:PauseLayout()
+        widget:ReleaseChildren()
 
-    self.debuggerFrame = BuildDebuggerFrame({
-        Debug = self.debug,
-        OnStartLootSession = function()
-            self:OpenLootSessionManager()
-        end,
-    })
+        if group == "items" then
+            local itemstab = self:CreateItemScrollFrame()
+            widget:AddChild(itemstab)
+        elseif group == "sessions" then
+            local sessionstab = self:CreateSessionHistoryScrollFrame()
+            widget:AddChild(sessionstab)
+        end
 
+        widget:ResumeLayout()
+        widget:PerformLayout()
+    end)
+
+    tab:SelectTab("items")
+    
+    w:AddChild(tab)
+
+    w:Hide()
+    self.window = w
 end
 
-function LootAddOn:EnableForSession()
-    self.state["has_chosen_to_enable_or_disable"] = true
-    self.state["has_enabled_addon_for_session"] = true
+function Addon:CreateSessionRollGroup(player, value)
+    local grp = AceGUI:Create("SimpleGroup")
+    AceEvent:Embed(grp)
+    
+    grp:SetLayout("Flow")
+    grp:SetFullWidth(true)
+
+    local icon = AceGUI:Create("Icon")
+    icon:SetImage(READY_CHECK_WAITING_TEXTURE)
+    icon:SetImageSize(14, 14)
+    icon:SetWidth(30)
+    icon:SetHeight(24)
+    icon.frame:SetScript('OnEnter', function() end)
+    icon.frame:SetScript('OnLeave', function() end)
+    grp:AddChild(icon)
+
+    local lbl1 = AceGUI:Create("Label")
+    lbl1:SetText(string.format("%s", value))
+    lbl1:SetFontObject(GameFontNormal)
+    lbl1:SetWidth(32)
+    lbl1:SetJustifyH("MIDDLE")
+    lbl1.frame:SetScript('OnEnter', function() end)
+    lbl1.frame:SetScript('OnLeave', function() end)
+    grp:AddChild(lbl1)
+
+    local r, g, b, hex = GetClassColor(player.class)
+    local lbl2 = AceGUI:Create("Label")
+    lbl2:SetText(player.name)
+    lbl2:SetColor(r, g, b)
+    lbl2:SetFontObject(GameFontNormal)
+    lbl2:SetWidth(160)
+    lbl2.frame:SetScript('OnEnter', function() end)
+    lbl2.frame:SetScript('OnLeave', function() end)
+    grp:AddChild(lbl2)
+
+    grp:RegisterMessage("ADDON_LOOT_SESSION_END", function(event, session, winners)
+        local found = false
+        for _, winner in pairs(winners) do
+            if winner.player.fqname == player.fqname then
+                found = true
+                break
+            end
+        end
+        if found then
+            icon:SetImage(READY_CHECK_READY_TEXTURE)
+        else
+            icon:SetImage(READY_CHECK_NOT_READY_TEXTURE)
+        end
+    end)
+
+    grp:SetCallback("OnRelease", function(event)
+        grp:UnregisterAllMessages()
+    end)
+
+    return grp
 end
 
-function LootAddOn:DisableForSession()
-    self.state["has_chosen_to_enable_or_disable"] = true
-    self.state["has_enabled_addon_for_session"] = false
+function Addon:CreateSessionStatusButton(session)
+    local btn = AceGUI:Create("Button")
+    AceEvent:Embed(btn)
+
+    btn:SetText("10 sec")
+    btn:SetWidth(120)
+    btn:SetDisabled(true)
+
+    btn:SetCallback("OnRelease", function(event)
+        btn:UnregisterAllMessages()
+    end)
+
+    btn:SetCallback("OnClick", function(event) end)
+
+    btn:RegisterMessage("ADDON_LOOT_SESSION_TICK", function(event, sess)
+        if session.id == sess.id then
+            local second = sess.duration - sess.tick
+            btn:SetText(string.format("%s sec", second))
+        end
+    end)
+    
+    btn:RegisterMessage("ADDON_LOOT_SESSION_END", function(event, sess, winners)
+        if session.id == sess.id then
+            -- When there are no winners
+            if table.getn(winners) < 1 then
+                btn:SetText("Reroll")
+                btn:SetDisabled(false)
+                btn:SetCallback("OnClick", function(event)
+                    btn:SendMessage("ADDON_LOOT_ITEM_PROPOSED", sess.item, nil)
+                end)
+            end
+
+            -- When there's a clear winner
+            if table.getn(winners) == 1 then
+                btn:SetText("Announce")
+                btn:SetDisabled(false)
+                btn:SetCallback("OnClick", function(event)
+                    btn:SendMessage("ADDON_LOOT_SESSION_END_ANNOUNCEMENT", sess, winners)
+                end)
+            end
+
+            -- When there's a draw
+            if table.getn(winners) > 1 then
+                btn:SetText("Reroll")
+                btn:SetDisabled(false)
+                btn:SetCallback("OnClick", function(event)
+                    local players = {}
+                    for _, winner in ipairs(winners) do
+                        table.insert(players, winner.player)
+                    end
+                    btn:SendMessage("ADDON_LOOT_ITEM_PROPOSED", sess.item, players)
+                end)
+            end
+        end
+    end)
+
+    return btn
 end
 
-function LootAddOn:OpenLootSessionManager()
-    print("opening manager")
-    self.lootSessionManagerFrame:Show()
+function Addon:CreateSessionWindow(session)
+    if self.sessionwindow then
+        self.sessionwindow:Release()
+    end
+
+    local w = AceGUI:Create("Window")
+    AceEvent:Embed(w)
+
+    local item = session.item
+    local info = {GetItemInfo(item.link)}
+
+    w:SetTitle(info[1]) -- item name
+    w:SetStatusTable(self.db.profile.windows.session)
+    w:EnableResize(false)
+    w:SetLayout("Fill")
+    w:SetWidth(440)
+    w:SetHeight(500)
+    -- w:SetHeight(160)
+
+    local scr = AceGUI:Create("ScrollFrame")
+    scr:SetFullWidth(true)
+    scr:SetLayout("List")
+    w:AddChild(scr)
+
+    local grp = AceGUI:Create("SimpleGroup")
+    grp:SetLayout("Flow")
+    grp:SetFullWidth(true)
+    scr:AddChild(grp)
+
+    local ico = AceGUI:Create("Icon")
+    ico:SetWidth(50)
+    ico:SetHeight(50)
+    ico:SetImage(info[10]) -- item icon texture
+    ico:SetImageSize(30, 30)
+    ItemTooltip:Embed(ico.frame, item.link)
+    grp:AddChild(ico)
+
+    local lbl = AceGUI:Create("Label")
+    lbl:SetText(item.link)
+    lbl:SetFontObject(GameFontHighlight)
+    lbl:SetWidth(220)
+    ItemTooltip:Embed(lbl.frame, item.link)
+    grp:AddChild(lbl)
+
+    grp:AddChild(self:CreateSessionStatusButton(session))
+
+    w:SetCallback("OnRelease", function(event)
+        w:UnregisterAllMessages()
+    end)
+
+    w:RegisterMessage("ADDON_LOOT_SESSION_ROLL", function(event, sess, player, value)
+        if session.id == sess.id then
+            scr:AddChild(self:CreateSessionRollGroup(player, value))
+        end
+    end)
+
+    w:Show()
+    self.sessionwindow = w
 end
 
-function LootAddOn:CloseLootSessionManager()
-    self.lootSessionManagerFrame:Hide()
+function dump(o)
+    if type(o) == 'table' then
+        local s = '{ '
+        for k,v in pairs(o) do
+            if type(k) ~= 'number' then k = '"'..k..'"' end
+            s = s .. '['..k..'] = ' .. dump(v) .. ','
+        end
+        return s .. '} '
+    else
+        return tostring(o)
+    end
 end
-
-local addon = LootAddOn:new({
-    version = LootAddOn_Version,
-    debug = false
-})
-
-addon:Load()
