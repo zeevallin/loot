@@ -75,7 +75,7 @@ function Player:LookupByName(name)
         local info = {GetRaidRosterInfo(i)}
         local fqname = info[1] -- includes the server name
         if fqname then
-            local ok, name = parseName(fqname) -- excludes the server name
+            local ok, name = Player:ParseName(fqname) -- excludes the server name
             if ok and (name == pname) then
                 found = true
                 player = Player:new(
