@@ -11,11 +11,18 @@ jobs:
     name: Upload Release Asset
     runs-on: ubuntu-latest
     steps:
+      - name: Extract tag name
+        id: tag
+        uses: actions/github-script@0.2.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            return context.payload.ref.replace(/\/refs\/tags\//, '');
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
-          git archive --format zip --prefix Loot/ --output ./Loot@${{GITHUB_REF##*/}}.zip master
+          git archive --format zip --prefix Loot/ --output ./Loot@${{ steps.tag.outputs.result }}.zip master
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -33,6 +40,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-          asset_path: ./Loot@${{GITHUB_REF##*/}}.zip
-          asset_name: Loot@${{GITHUB_REF##*/}}.zip
+          asset_path: ./Loot@${{ steps.tag.outputs.result }}.zip
+          asset_name: Loot@${{ steps.tag.outputs.result }}.zip
           asset_content_type: application/zip
