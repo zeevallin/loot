@@ -1,7 +1,7 @@
 ## Interface: 90002
 ## Title: Loot
 ## Author: Neum - Twisting Nether
-## Version: v9.0.2-alpha.10
+## Version: v9.0.2-alpha.11
 ## SavedVariables: LootDB
 ## SavedVariablesPerCharacter: LootPerCharacterDB
 

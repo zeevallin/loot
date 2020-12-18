@@ -18,7 +18,7 @@ jobs:
         run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
-          git archive --format zip --prefix Loot/ --output ./Loot@${{ steps.get_version.outputs.VERSION }}.zip master
+          git archive --format zip --prefix Loot/ --output ./Loot@${{ steps.version.outputs.VERSION }}.zip master
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -36,6 +36,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-          asset_path: ./Loot@${{ steps.get_version.outputs.VERSION }}.zip
-          asset_name: Loot@${{ steps.get_version.outputs.VERSION }}.zip
+          asset_path: ./Loot@${{ steps.version.outputs.VERSION }}.zip
+          asset_name: Loot@${{ steps.version.outputs.VERSION }}.zip
           asset_content_type: application/zip
