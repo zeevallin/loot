@@ -375,21 +375,9 @@ end
 
 function Addon:OnEnable()
     -- Iterate over all bags and add the contents to the items array.
-    -- TODO: Make this a bit nicer to make sure the items are rendered on demand when test mode is disabled at runtime.
+    self.items = {}
     if self.db.profile.test then
-        self.items = {}
-        local player = Player:GetCurrent()
-        local i1 = 0
-        for i = 4, 0, -1 do
-            for i2 = GetContainerNumSlots(i), 0, -1 do
-                local link = select(7, GetContainerItemInfo(i,i2))
-                if link and (i1 < 100) then
-                    local item = LootItem:new(player, link)
-                    table.insert(self.items, item)
-                    i1 = i1+1
-                end
-            end
-        end
+        self.items = GenerateTestItems()
     end
 
     -- Clear out all sessions older than a set amount of hours when adodn loads.
@@ -1178,4 +1166,22 @@ function dump(o)
     else
         return tostring(o)
     end
+end
+
+-- Generate test items to be used during addon testing based on what's in the player's backpack.
+function GenerateTestItems()
+    local items = {}
+    local player = Player:GetCurrent()
+    local i1 = 0
+    for i = 4, 0, -1 do
+        for i2 = GetContainerNumSlots(i), 0, -1 do
+            local link = select(7, GetContainerItemInfo(i,i2))
+            if link and (i1 < 100) then
+                local item = LootItem:new(player, link)
+                table.insert(items, item)
+                i1 = i1+1
+            end
+        end
+    end
+    return items
 end
