@@ -111,6 +111,36 @@ local READY_CHECK_WAITING_TEXTURE = "Interface/RaidFrame/ReadyCheck-Waiting"
 local READY_CHECK_READY_TEXTURE = "Interface/RaidFrame/ReadyCheck-Ready"
 local READY_CHECK_NOT_READY_TEXTURE = "Interface/RaidFrame/ReadyCheck-NotReady"
 
+-- System events the addon uses to derive information about loot from the game.
+local ADDON_EVENTS = {
+    "ZONE_CHANGED", -- Used to prompt the addon to collect new information about your instance.
+    "RAID_INSTANCE_WELCOME", -- Used to prompt the addon to collect new information about your instance.
+    "UPDATE_INSTANCE_INFO", -- Used to collect data about the current instance.
+    "BOSS_KILL", -- Used to automatically request loot from people after a boss dies.
+    "CHAT_MSG_SYSTEM", -- Used to figure out what person has rolled.
+    "CHAT_MSG_LOOT", -- Used to figure out what items has dropped.
+    "CHAT_MSG_WHISPER" -- Used to collect eligable loot from other people in the group.
+}
+
+-- Message events sent and received internally.
+local ADDON_MESSAGES = {
+    "ADDON_LOOT_UI_ACTION_SHOW_WINDOW", -- Prompts the addon to show the loot window.
+    "ADDON_LOOT_UI_ACTION_SHOW_OPTIONS", -- Prompts the addon to show the options window.
+    "ADDON_LOOT_UI_ACTION_DISCARD_ITEM", -- Prompts the addon to discard a shared item.
+    "ADDON_LOOT_UI_WINDOW_SHOW", -- Happens when the loot window is opened.
+    "ADDON_LOOT_UI_WINDOW_CLOSE", -- Happens when the loot window is closed.
+    "ADDON_LOOT_PLAYER_ROLL", -- Happens when a player rolls.
+    "ADDON_LOOT_PLAYER_ITEM_ACQUIRED", -- Happens when a player loots an item.
+    "ADDON_LOOT_PLAYER_ITEM_SHARED", -- Happens when a player shares an item raid by providing it to the loot master (person responsible of the loot sessions).
+    "ADDON_LOOT_SESSION_BEGIN", -- Happens at the beginning of a session.
+    "ADDON_LOOT_SESSION_TICK", -- Happens at each tick (second) of a loot session's count down.
+    "ADDON_LOOT_SESSION_ROLL", -- Happens when a player has joined a loot session with a roll.
+    "ADDON_LOOT_SESSION_END", -- Happens at the end of a session.
+    "ADDON_LOOT_SESSION_END_ANNOUNCEMENT", -- Happens when a result of a loot session is announced.
+    "ADDON_LOOT_ITEM_DISCARDED", -- Happens when an item is discarded from the proposed items.
+    "ADDON_LOOT_ITEM_PROPOSED", -- Happens when an item has been proposed to the group for rolling.
+}
+
 -- Load the dependencies for this addon.
 local AceGUI = LibStub("AceGUI-3.0")
 local AceEvent = LibStub("AceEvent-3.0")
@@ -403,30 +433,14 @@ function Addon:OnEnable()
     self:CreateLootWindow()
 
     -- Register all events
-    self:RegisterEvent("ZONE_CHANGED")
-    self:RegisterEvent("RAID_INSTANCE_WELCOME")
-    self:RegisterEvent("UPDATE_INSTANCE_INFO")
-    self:RegisterEvent("BOSS_KILL")
-    self:RegisterEvent("CHAT_MSG_SYSTEM")
-    self:RegisterEvent("CHAT_MSG_LOOT")
-    self:RegisterEvent("CHAT_MSG_WHISPER")
+    for _, event in ADDON_EVENTS do
+        self:RegisterEvent(event)    
+    end
 
     -- Register internal messagess
-    self:RegisterMessage("ADDON_LOOT_UI_ACTION_SHOW_WINDOW")
-    self:RegisterMessage("ADDON_LOOT_UI_ACTION_SHOW_OPTIONS")
-    self:RegisterMessage("ADDON_LOOT_UI_ACTION_DISCARD_ITEM")
-    self:RegisterMessage("ADDON_LOOT_UI_WINDOW_SHOW")
-    self:RegisterMessage("ADDON_LOOT_UI_WINDOW_CLOSE")
-    self:RegisterMessage("ADDON_LOOT_PLAYER_ROLL")
-    self:RegisterMessage("ADDON_LOOT_PLAYER_ITEM_ACQUIRED")
-    self:RegisterMessage("ADDON_LOOT_PLAYER_ITEM_SHARED")
-    self:RegisterMessage("ADDON_LOOT_SESSION_BEGIN")
-    self:RegisterMessage("ADDON_LOOT_SESSION_TICK")
-    self:RegisterMessage("ADDON_LOOT_SESSION_ROLL")
-    self:RegisterMessage("ADDON_LOOT_SESSION_END")
-    self:RegisterMessage("ADDON_LOOT_SESSION_END_ANNOUNCEMENT")
-    self:RegisterMessage("ADDON_LOOT_ITEM_DISCARDED")
-    self:RegisterMessage("ADDON_LOOT_ITEM_PROPOSED")
+    for _, message in ADDON_MESSAGES do
+        self:RegisterMessage(message)    
+    end
 
     -- Request raid info to make sure we will know what instance we're in
     RequestRaidInfo()
@@ -443,6 +457,16 @@ function Addon:OnDisable()
     -- Make sure to always hide the minimap icon when the addon is disabled.
     if self.icon ~= nil then
         self.icon:Hide("Loot")
+    end
+
+    -- Unregister all system events being listened to. 
+    for _, event in ADDON_EVENTS do
+        self:UnregisterEvent(event)    
+    end
+
+    -- Unregister all internal messages.
+    for _, message in ADDON_MESSAGES do
+        self:UnregisterMessage(message)    
     end
 
     self:Debug("addon disabled")
