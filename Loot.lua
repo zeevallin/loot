@@ -436,10 +436,14 @@ end
 
 function Addon:OnDisable()
     -- Hide the main addon window.
-    self.window:Hide()
+    if self.window ~= nil then
+        self.window:Hide()
+    end
 
     -- Make sure to always hide the minimap icon when the addon is disabled.
-    self.icon:Hide("Loot")
+    if self.icon ~= nil then
+        self.icon:Hide("Loot")
+    end
 
     self:Debug("addon disabled")
 end
