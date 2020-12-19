@@ -8,7 +8,7 @@ local ADDON_DEFAULTS = {
             duration = 10,
             maxroll = 100,
             minroll = 1,
-            selfroll = false
+            selfroll = true
         },
         minimap = {
             hide = false
