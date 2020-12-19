@@ -433,12 +433,12 @@ function Addon:OnEnable()
     self:CreateLootWindow()
 
     -- Register all events
-    for _, event in ADDON_EVENTS do
+    for _, event in ipairs(ADDON_EVENTS) do
         self:RegisterEvent(event)    
     end
 
     -- Register internal messagess
-    for _, message in ADDON_MESSAGES do
+    for _, message in ipairs(ADDON_MESSAGES) do
         self:RegisterMessage(message)    
     end
 
@@ -460,12 +460,12 @@ function Addon:OnDisable()
     end
 
     -- Unregister all system events being listened to. 
-    for _, event in ADDON_EVENTS do
+    for _, event in ipairs(ADDON_EVENTS) do
         self:UnregisterEvent(event)    
     end
 
     -- Unregister all internal messages.
-    for _, message in ADDON_MESSAGES do
+    for _, message in ipairs(ADDON_MESSAGES) do
         self:UnregisterMessage(message)    
     end
 
