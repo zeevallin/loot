@@ -490,10 +490,16 @@ end
 
 function Addon:BOSS_KILL(event, encounterID, encounterName)
     self:Debug(string.format("defeated %s (%s)", encounterName, encounterID))
-    -- Only open the loot window if we're in a party or raid.
-    if self.is_in_party_or_raid then
-        self:Debug("opening loot window on encounter completion")
-        self:SendMessage("ADDON_LOOT_UI_ACTION_SHOW_WINDOW")
+    local encounter = self.db.profile.encounters[encounterID]
+
+    -- Only open the loot window if we're in a party or raid or if the encounter exists in the configuration.
+    if self.is_in_party_or_raid and (encounter ~= nil) then
+        if encounter[self.current_difficulty] then
+            self:Debug("encounter configured to trigger loot sessions")
+            self:SendMessage("ADDON_LOOT_UI_ACTION_SHOW_WINDOW")
+        else
+            self:Debug("encounter not configured to trigger loot sessions (ignoring)")
+        end
     else
         self:Debug("criteria for opening loot window not met (ignoring)")
     end
