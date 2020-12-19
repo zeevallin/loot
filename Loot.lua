@@ -697,7 +697,7 @@ end
 function Addon:ADDON_LOOT_SESSION_TICK(event, session)
     self:Debug("session (%d) ticked (%d/%d seconds) for %s from %s (%d)", session.id, session.tick, session.duration, session.item.link, session.item.player.fqname, session.item.id)
     local counter = session.duration - session.tick
-    if counter < 6 and counter > 0 then
+    if (counter < 6 and counter > 0) or ((counter % 10) == 0) then
         self:Announce( string.format("%d seconds remain", counter) )
     end
 end
