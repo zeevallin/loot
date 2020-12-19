@@ -26,65 +26,65 @@ local ADDON_DEFAULTS = {
             auto = false
         },
         encounters = {
-            ["2418"] = { -- Huntsman Altimor
-                ["R"] = false,
-                ["N"] = true,
-                ["H"] = true,
-                ["M"] = true
+            ["2398"] = { -- Shriekwing
+                ["RAIDFINDER"] = false,
+                ["NORMAL"] = true,
+                ["HEROIC"] = true,
+                ["MYTHIC"] = true
             },
-            ["2417"] = { -- Stone Legion Generals
-                ["R"] = false,
-                ["N"] = true,
-                ["H"] = true,
-                ["M"] = true
+            ["2418"] = { -- Huntsman Altimor
+                ["RAIDFINDER"] = false,
+                ["NORMAL"] = true,
+                ["HEROIC"] = true,
+                ["MYTHIC"] = true
             },
             ["2412"] = { -- The Council of Blood
-                ["R"] = false,
-                ["N"] = true,
-                ["H"] = true,
-                ["M"] = true
-            },
-            ["2407"] = { -- Sire Denathrius
-                ["R"] = false,
-                ["N"] = true,
-                ["H"] = true,
-                ["M"] = true
+                ["RAIDFINDER"] = false,
+                ["NORMAL"] = true,
+                ["HEROIC"] = true,
+                ["MYTHIC"] = true
             },
             ["2406"] = { -- Lady Inerva Darkvein
-                ["R"] = false,
-                ["N"] = true,
-                ["H"] = true,
-                ["M"] = true
+                ["RAIDFINDER"] = false,
+                ["NORMAL"] = true,
+                ["HEROIC"] = true,
+                ["MYTHIC"] = true
             },
             ["2405"] = { -- Artificer Xy'mox
-                ["R"] = false,
-                ["N"] = true,
-                ["H"] = true,
-                ["M"] = true
+                ["RAIDFINDER"] = false,
+                ["NORMAL"] = true,
+                ["HEROIC"] = true,
+                ["MYTHIC"] = true
             },
             ["2402"] = { -- Sun King's Salvation
-                ["R"] = false,
-                ["N"] = true,
-                ["H"] = true,
-                ["M"] = true
+                ["RAIDFINDER"] = false,
+                ["NORMAL"] = true,
+                ["HEROIC"] = true,
+                ["MYTHIC"] = true
             },
             ["2399"] = { -- Sludgefist
-                ["R"] = false,
-                ["N"] = true,
-                ["H"] = true,
-                ["M"] = true
-            },
-            ["2398"] = { -- Shriekwing
-                ["R"] = false,
-                ["N"] = true,
-                ["H"] = true,
-                ["M"] = true
+                ["RAIDFINDER"] = false,
+                ["NORMAL"] = true,
+                ["HEROIC"] = true,
+                ["MYTHIC"] = true
             },
             ["2383"] = { -- Hungering Destroyer
-                ["R"] = false,
-                ["N"] = true,
-                ["H"] = true,
-                ["M"] = true
+                ["RAIDFINDER"] = false,
+                ["NORMAL"] = true,
+                ["HEROIC"] = true,
+                ["MYTHIC"] = true
+            },
+            ["2417"] = { -- Stone Legion Generals
+                ["RAIDFINDER"] = false,
+                ["NORMAL"] = true,
+                ["HEROIC"] = true,
+                ["MYTHIC"] = true
+            },
+            ["2407"] = { -- Sire Denathrius
+                ["RAIDFINDER"] = false,
+                ["NORMAL"] = true,
+                ["HEROIC"] = true,
+                ["MYTHIC"] = true
             }
         }
     },
@@ -492,7 +492,7 @@ function Addon:UPDATE_INSTANCE_INFO(event, ...)
     local party = itype == "party"
 
     self["is_in_party_or_raid"] = (raid or party)
-    self["current_difficulty"] = "N" -- TODO: Actually derive the difficulty from the difficultyID
+    self["current_difficulty"] = Difficulty:LookupID(difficultyID)
     
     self:Debug("updating instance info")
 end

@@ -36,5 +36,6 @@ Modules\Iterators.lua
 Modules\LootItem.lua
 Modules\LootSession.lua
 Modules\RaidData.lua
+Modules\Difficulty.lua
 
 Loot.lua
