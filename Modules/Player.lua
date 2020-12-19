@@ -66,7 +66,9 @@ function Player:LookupByName(name)
     -- We get around this by bailing before we get to that point.
     local n = GetNumGroupMembers()
     if n < 2 then
-        return true, Player:GetCurrent()
+        -- HACK: We do this to allow player to whisper self without being inside a group.
+        local player = Player:GetCurrent()
+        return (player.name == pname), player
     end
 
     -- loop through the raind memebers to get information on a player by their name
