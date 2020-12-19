@@ -1,25 +1,23 @@
 on:
   push:
-    # Sequence of patterns matched against refs/tags
     tags:
-      - "v*" # Push events to matching v*, i.e. v1.0, v20.15.10
+      - "v*.*.*-alpha.*" # push events matching i.e. v9.0.3-alpha.1
 
-name: Upload Release Asset
-
+name: Alpha Release
 jobs:
   build:
-    name: Upload Release Asset
+    name: Build Release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Extract version
+      - name: Extract version from reference
         id: version
         run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
-      - name: Build project # This would actually build your project, using zip for an example artifact
+      - name: Build project into an archive
         run: |
           git archive --format zip --prefix Loot/ --output ./Loot@${{ steps.version.outputs.VERSION }}.zip HEAD
-      - name: Create Release
+      - name: Create release on GitHub
         id: create_release
         uses: actions/create-release@v1
         env:
@@ -28,8 +26,8 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: ${{ github.ref }}
           draft: false
-          prerelease: false
-      - name: Upload Release Asset
+          prerelease: true
+      - name: Attach assets to GitHub release
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
         env:

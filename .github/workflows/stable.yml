@@ -1,0 +1,39 @@
+on:
+  push:
+    tags:
+      - "v*.*.*-stable.*" # push events matching i.e. v9.0.3-stable.1
+
+name: Stable Release
+jobs:
+  build:
+    name: Build Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Extract version from reference
+        id: version
+        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
+      - name: Build project into an archive
+        run: |
+          git archive --format zip --prefix Loot/ --output ./Loot@${{ steps.version.outputs.VERSION }}.zip HEAD
+      - name: Create release on GitHub
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          draft: true
+          prerelease: false
+      - name: Attach assets to GitHub release
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ./Loot@${{ steps.version.outputs.VERSION }}.zip
+          asset_name: Loot@${{ steps.version.outputs.VERSION }}.zip
+          asset_content_type: application/zip
