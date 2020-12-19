@@ -1,4 +1,3 @@
-local ADDON_VERSION = "9.0.2"
 local ADDON_DB_NAME = "LootDB"
 local ADDON_DEFAULTS = {
     profile = {
@@ -444,7 +443,7 @@ function Addon:OnEnable()
     -- Request raid info to make sure we will know what instance we're in
     RequestRaidInfo()
 
-    self:Debug(string.format("|cFFFF0000Enabling... (|cFFFFFFFF%s|cFFFF0000)", ADDON_VERSION))
+    self:Debug("addon enabled")
 end
 
 function Addon:OnDisable()
@@ -454,7 +453,7 @@ function Addon:OnDisable()
     -- Make sure to always hide the minimap icon when the addon is disabled.
     self.icon:Hide("Loot")
 
-    self:Debug(string.format("|cFFFF0000Disabling... (|cFFFFFFFF%s|cFFFF0000)", ADDON_VERSION))
+    self:Debug("addon disabled")
 end
 
 function Addon:Announce(message)
