@@ -266,10 +266,46 @@ function Addon:OnInitialize()
                 descStyle = "inline",
                 width = "double",
                 type = "toggle",
-                order = 4,
+                order = 1,
                 set = function(info, val) self.db.profile.session.selfroll = val end,
                 get = function(info) return self.db.profile.session.selfroll end
             },
+            minroll = {
+                name = "Minimum roll number",
+                desc = "The smallest value that can be rolled by players.",
+                width = "double",
+                type = "range",
+                order = 2,
+                step = 1,
+                min = 0,
+                max = 99,
+                validate = function(info, val)
+                    if val >= self.db.profile.session.maxroll then
+                        return "Minimum roll number needs to be smaller than the maximum one"
+                    end
+                    return true
+                end,
+                set = function(info, val) self.db.profile.session.minroll = val end,
+                get = function(info) return self.db.profile.session.minroll end,
+            },
+            maxroll = {
+                name = "Maximum roll number",
+                desc = "The largest value that can be rolled by players.",
+                width = "double",
+                type = "range",
+                order = 3,
+                step = 1,
+                min = 1,
+                max = 100,
+                validate = function(info, val)
+                    if val <= self.db.profile.session.minroll then
+                        return "Maximum roll number needs to be larger than the minimum one"
+                    end
+                    return true
+                end,
+                set = function(info, val) self.db.profile.session.maxroll = val end,
+                get = function(info) return self.db.profile.session.maxroll end,
+            }
         },
     }
 
