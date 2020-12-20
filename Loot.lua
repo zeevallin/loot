@@ -612,6 +612,9 @@ function Addon:ADDON_LOOT_UI_ACTION_WINDOW_OPEN(event)
         self:Debug("ui action to display main window")
         self.window = self:CreateLootWindow()
         self.window:Show()
+        self:SendMessage("ADDON_LOOT_UI_WINDOW_OPEN", self.window)
+        _G["AddonLootWindow"] = self.window.frame
+        tinsert(UISpecialFrames, "AddonLootWindow")
     else
         self:Debug("ui action to display main window failed because the frame has not been constructed")
     end
@@ -619,9 +622,8 @@ end
 
 function Addon:ADDON_LOOT_UI_ACTION_WINDOW_CLOSE(event)
     if self.window ~= nil then
-        self.window:Hide()
-        self.window = nil
         self:Debug("ui action to close main window")
+        self.window:Hide()
     else
         self:Debug("ui action to close main window failed because the frame has not been constructed")
     end
@@ -661,13 +663,17 @@ end
 
 -- Happens when the primary loot window opens.
 function Addon:ADDON_LOOT_UI_WINDOW_OPEN(event, window)
-    self:Debug("primary window is showing")
+    self:Debug("window is opening")
     self.broker.icon = ADDON_BROKER_ICON_ACTIVE
 end
 
 -- Happens when the primary window for the loot addon is closed.
 function Addon:ADDON_LOOT_UI_WINDOW_CLOSE(window)
-    self:Debug("primary window is closing")
+    self:Debug("window is closing")
+    if self.window ~= nil then
+        AceGUI:Release(self.window)
+    end
+    self.window = nil
     self.broker.icon = ADDON_BROKER_ICON_INACTIVE
 end
 
@@ -1022,14 +1028,7 @@ function Addon:CreateLootWindow()
     w:SetLayout("Fill")
     w:SetHeight(500)
 
-    w:SetCallback("OnShow", function(widget)
-        self:SendMessage("ADDON_LOOT_UI_WINDOW_OPEN", widget)
-    end)
-
-    w:SetCallback("OnClose", function(widget)
-        self:SendMessage("ADDON_LOOT_UI_WINDOW_CLOSE", widget)
-        AceGUI:Release(widget)
-    end)
+    w:SetCallback("OnClose", function(widget) self:SendMessage("ADDON_LOOT_UI_WINDOW_CLOSE", widget) end)
 
     local tab =  AceGUI:Create("TabGroup")
     tab:SetLayout("Fill")
