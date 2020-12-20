@@ -1,8 +1,8 @@
 ## Interface: 90002
-## Version: v9.0.2-stable.4
 ## Title: "Loot"
 ## Notes: "Ease the process of distributing personal loot in a raid or dungeon setting"
 ## Author: Zee (https://github.com/zeeraw)
+## Version: v9.0.2-stable.5
 ## SavedVariables: LootDB
 ## SavedVariablesPerCharacter: LootPerCharacterDB
 ## DefaultState: enabled
@@ -30,6 +30,7 @@ Libs\AceLocale-3.0\AceLocale-3.0.xml
 Libs\AceSerializer-3.0\AceSerializer-3.0.xml
 Libs\AceTab-3.0\AceTab-3.0.xml
 Libs\AceTimer-3.0\AceTimer-3.0.xml
+Locales\Locales.xml
 #@end-no-lib-strip@
 
 Modules\ChatMessages.lua

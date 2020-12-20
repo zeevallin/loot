@@ -144,6 +144,9 @@ local AceGUI = LibStub("AceGUI-3.0")
 local AceEvent = LibStub("AceEvent-3.0")
 local AceConfig = LibStub("AceConfig-3.0")
 
+-- Setup internationalisation.
+local T = LibStub("AceLocale-3.0"):GetLocale("Loot")
+
 -- Construct the addon with embeded plugins.
 local Addon = LibStub("AceAddon-3.0"):NewAddon("Loot",
     "AceConsole-3.0", -- Used for the slash command
@@ -173,10 +176,10 @@ function Addon:OnInitialize()
             if options[button] then options[button]() end
         end,
         OnTooltipShow = function(tooltip)
-            tooltip:SetText("Loot")
-            tooltip:AddLine("Tracking and assisting personal loot sharing", 1, 1, 1)
-            tooltip:AddDoubleLine("Left click", "Toggle loot manager window")
-            tooltip:AddDoubleLine("Right click", "Open addon configuration")
+            tooltip:SetText(T["minimap_icon_title"])
+            tooltip:AddLine(T["minimap_icon_desc"], 1, 1, 1)
+            tooltip:AddDoubleLine(T["minimap_icon_left_click"], T["minimap_icon_left_click_desc"])
+            tooltip:AddDoubleLine(T["minimap_icon_right_click"], T["minimap_icon_right_click_desc"])
             tooltip:Show()
         end
     })
