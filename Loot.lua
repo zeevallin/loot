@@ -1182,7 +1182,6 @@ function Addon:CreateSessionWindow(session)
     w:SetLayout("Fill")
     w:SetWidth(440)
     w:SetHeight(500)
-    -- w:SetHeight(160)
 
     local scr = AceGUI:Create("ScrollFrame")
     scr:SetFullWidth(true)
