@@ -21,61 +21,76 @@ local ADDON_DEFAULTS = {
             auto = false
         },
         encounters = {
-            ["2398"] = { -- Shriekwing
+            [1810] = { -- Warlord Parjesh (Eye of Azshara) USED FOR TESTING
+                ["NORMAL"] = true,
+                ["HEROIC"] = true,
+                ["MYTHIC"] = true
+            },
+            [1811] = { -- Lady Hatecoil (Eye of Azshara) USED FOR TESTING
+                ["NORMAL"] = true,
+                ["HEROIC"] = true,
+                ["MYTHIC"] = true
+            },
+            [1813] = { -- Serpentrix (Eye of Azshara) USED FOR TESTING
+                ["NORMAL"] = true,
+                ["HEROIC"] = true,
+                ["MYTHIC"] = true
+            },
+            [2398] = { -- Shriekwing
                 ["RAIDFINDER"] = false,
                 ["NORMAL"] = true,
                 ["HEROIC"] = true,
                 ["MYTHIC"] = true
             },
-            ["2418"] = { -- Huntsman Altimor
+            [2418] = { -- Huntsman Altimor
                 ["RAIDFINDER"] = false,
                 ["NORMAL"] = true,
                 ["HEROIC"] = true,
                 ["MYTHIC"] = true
             },
-            ["2412"] = { -- The Council of Blood
+            [2412] = { -- The Council of Blood
                 ["RAIDFINDER"] = false,
                 ["NORMAL"] = true,
                 ["HEROIC"] = true,
                 ["MYTHIC"] = true
             },
-            ["2406"] = { -- Lady Inerva Darkvein
+            [2406] = { -- Lady Inerva Darkvein
                 ["RAIDFINDER"] = false,
                 ["NORMAL"] = true,
                 ["HEROIC"] = true,
                 ["MYTHIC"] = true
             },
-            ["2405"] = { -- Artificer Xy'mox
+            [2405] = { -- Artificer Xy'mox
                 ["RAIDFINDER"] = false,
                 ["NORMAL"] = true,
                 ["HEROIC"] = true,
                 ["MYTHIC"] = true
             },
-            ["2402"] = { -- Sun King's Salvation
+            [2402] = { -- Sun King's Salvation
                 ["RAIDFINDER"] = false,
                 ["NORMAL"] = true,
                 ["HEROIC"] = true,
                 ["MYTHIC"] = true
             },
-            ["2399"] = { -- Sludgefist
+            [2399] = { -- Sludgefist
                 ["RAIDFINDER"] = false,
                 ["NORMAL"] = true,
                 ["HEROIC"] = true,
                 ["MYTHIC"] = true
             },
-            ["2383"] = { -- Hungering Destroyer
+            [2383] = { -- Hungering Destroyer
                 ["RAIDFINDER"] = false,
                 ["NORMAL"] = true,
                 ["HEROIC"] = true,
                 ["MYTHIC"] = true
             },
-            ["2417"] = { -- Stone Legion Generals
+            [2417] = { -- Stone Legion Generals
                 ["RAIDFINDER"] = false,
                 ["NORMAL"] = true,
                 ["HEROIC"] = true,
                 ["MYTHIC"] = true
             },
-            ["2407"] = { -- Sire Denathrius
+            [2407] = { -- Sire Denathrius
                 ["RAIDFINDER"] = false,
                 ["NORMAL"] = true,
                 ["HEROIC"] = true,
@@ -566,18 +581,31 @@ end
 
 function Addon:BOSS_KILL(event, encounterID, encounterName)
     self:Debug(string.format("defeated %s (%s)", encounterName, encounterID))
-    local encounter = self.db.profile.encounters[encounterID]
-
     -- Only open the loot window if we're in a party or raid or if the encounter exists in the configuration.
-    if self.is_in_party_or_raid and (encounter ~= nil) then
-        if encounter[self.current_difficulty] then
-            self:Debug("encounter configured to trigger loot sessions")
-            self:SendMessage("ADDON_LOOT_UI_ACTION_WINDOW_OPEN")
-        else
-            self:Debug("encounter not configured to trigger loot sessions (ignoring)")
-        end
+    if not self.is_in_party_or_raid then
+        self:Debug("ignoring boss kill: not in a party or raid")
+        return
+    end
+
+    local encounter = self.db.profile.encounters[encounterID]
+    if encounter == nil then
+        self:Debug(string.format("ignoring boss kill: no such encounter on record: %s", encounterID))
+        return
+    end
+
+    local difficulty = encounter[self.current_difficulty]
+    if difficulty == nil then
+        self:Debug(string.format("ignoring boss kill: encounter has no such difficulty: %s", self.current_difficulty))
+        return
+    end
+
+    if difficulty then
+        self:Debug("encounter configured to trigger loot sessions")
+        self:SendMessage("ADDON_LOOT_UI_ACTION_WINDOW_OPEN")
+        local name, _ = UnitName("player")
+        self:Announce( string.format(T["boss_kill_announcement"], name) )
     else
-        self:Debug("criteria for opening loot window not met (ignoring)")
+        self:Debug("ignoring boss kill: encounter is configured not to prompt a loot session")
     end
 end
 

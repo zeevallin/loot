@@ -7,3 +7,5 @@ T["minimap_icon_left_click"] = "Left click"
 T["minimap_icon_left_click_desc"] = "Toggle loot manager window"
 T["minimap_icon_right_click"] = "Right click"
 T["minimap_icon_right_click_desc"] = "Open addon configuration"
+
+T["boss_kill_announcement"] = "Please whisper %s with any unwanted loot and it will be rolled for shortly"
