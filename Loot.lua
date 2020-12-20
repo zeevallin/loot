@@ -453,15 +453,14 @@ function Addon:OnInitialize()
 end
 
 function Addon:OnEnable()
-    -- Iterate over all bags and add the contents to the items array.
-    self.items = {}
+    local t = time() -- Curent time in unix seconds
+
     if self.db.profile.test then
-        self.items = GenerateTestItems()
+        -- Iterate over all bags and add the contents to the items array.
+        self.test_items = GenerateTestItems()
     end
 
     -- Clear out all sessions older than a set amount of hours when adodn loads.
-    -- TODO: Replace this with a losely coupled list of session IDs in sequential order that can be stored individually.
-    local t = time() -- Curent time in unix seconds
     local maxlife = self.db.global.retention.previous.hours * 3600 -- Number of seconds since the oldest session allowed.
     local sessions = {}
     for id, sess in pairs(self.db.global.sessions) do
