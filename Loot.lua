@@ -404,10 +404,10 @@ function Addon:OnInitialize()
         descStyle = "inline",
         args = instances
     }
-    
 
     -- Set up some common state variables
     self.is_in_party_or_raid = false
+    self.current_difficulty = "NORMAL"
 
     -- Setup the items cache
     self.items = {}
@@ -542,8 +542,8 @@ function Addon:UPDATE_INSTANCE_INFO(event, ...)
     local raid = itype == "raid"
     local party = itype == "party"
 
-    self["is_in_party_or_raid"] = (raid or party)
-    self["current_difficulty"] = Difficulty:LookupID(difficultyID)
+    self.is_in_party_or_raid = (raid or party)
+    self.current_difficulty = Difficulty:LookupID(difficultyID)
     
     self:Debug("updating instance info")
 end
