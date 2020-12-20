@@ -13,10 +13,6 @@ local ADDON_DEFAULTS = {
         minimap = {
             hide = false
         },
-        zones = {
-            raid = true,
-            party = true
-        },
         windows = {
             main = {},
             session = {}
