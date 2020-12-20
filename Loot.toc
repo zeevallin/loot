@@ -1,9 +1,12 @@
 ## Interface: 90002
-## Title: Loot
-## Author: Neum - Twisting Nether
 ## Version: v9.0.2-stable.4
+## Title: "Loot"
+## Notes: "Ease the process of distributing personal loot in a raid or dungeon setting"
+## Author: Zee (https://github.com/zeeraw)
 ## SavedVariables: LootDB
 ## SavedVariablesPerCharacter: LootPerCharacterDB
+## DefaultState: enabled
+## X-Website: https://github.com/zeeraw/loot
 
 #@no-lib-strip@
 Libs\LibStub\LibStub.lua
