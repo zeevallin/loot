@@ -718,7 +718,7 @@ end
 
 function Addon:ADDON_LOOT_PLAYER_ITEM_SHARED(event, item)
     self:Debug("player %s shared %s (%d)", item.player.fqname, item.link, item.id)
-    table.insert(GetItemsTable(), item)
+    table.insert(self:GetItemsTable(), item)
 end
 
 function Addon:ADDON_LOOT_SESSION_BEGIN(event, session, players)
