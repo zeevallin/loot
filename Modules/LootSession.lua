@@ -60,9 +60,9 @@ function LootSession:Begin()
         if self.onEverySecond then
             self:onEverySecond()
         end
-    end, self.duration)
+    end, self.duration - 1)
 
-    C_Timer.After(self.duration + 1, function()
+    C_Timer.After(self.duration, function()
         if self.onDone then
             self:onDone(self:GetWinners())
         end
