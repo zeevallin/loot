@@ -800,6 +800,7 @@ function Addon:ADDON_LOOT_ITEM_PROPOSED(event, item, players)
 end
 
 function Addon:CreateItemGroup(item)
+    local item = LootItem:load(item)
     local grp = AceGUI:Create("SimpleGroup")
     AceEvent:Embed(grp)
 
