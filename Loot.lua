@@ -533,6 +533,13 @@ function Addon:Announce(message)
     end
 end
 
+function Addon:GetItemsTable()
+    -- Provide a mock table when test mode is enabled.
+    if self.db.profile.test then return self.test_items
+    else return self.db.global.items
+    end
+end
+
 function Addon:ZONE_CHANGED(event, ...)
     -- Request raid info as soon as we enter the intance to make sure we know where we are by the end of an encounter.
     RequestRaidInfo()
@@ -662,9 +669,9 @@ end
 -- Supposed to happen when an action is taken by the user to discard an item from the current list of shared items.
 function Addon:ADDON_LOOT_UI_ACTION_DISCARD_ITEM(event, item)
     self:Debug("ui action to discard item %s (%d) from player %s ", item.link, item.id, item.player.fqname)
-    for idx, itm in ipairs(self.items) do
+    for idx, itm in ipairs(self:GetItemsTable()) do
         if itm.id == item.id then
-            table.remove(self.items, idx)
+            table.remove(self:GetItemsTable(), idx)
             self:SendMessage("ADDON_LOOT_ITEM_DISCARDED", item)
             break
         end
@@ -711,7 +718,7 @@ end
 
 function Addon:ADDON_LOOT_PLAYER_ITEM_SHARED(event, item)
     self:Debug("player %s shared %s (%d)", item.player.fqname, item.link, item.id)
-    table.insert(self.items, item)
+    table.insert(GetItemsTable(), item)
 end
 
 function Addon:ADDON_LOOT_SESSION_BEGIN(event, session, players)
