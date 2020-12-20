@@ -627,7 +627,7 @@ end
 function Addon:ADDON_LOOT_UI_ACTION_WINDOW_OPEN(event)
     if self.window == nil then
         self:Debug("ui action to display main window")
-        self.window = self:CreateLootWindow()
+        self.window = self:CreateLootWindow(self:GetItemsTable())
         self.window:Show()
         self:SendMessage("ADDON_LOOT_UI_WINDOW_OPEN", self.window)
         _G["AddonLootWindow"] = self.window.frame
@@ -988,7 +988,7 @@ function Addon:CreateSessionHistoryScrollFrame()
     return scr
 end
 
-function Addon:CreateItemScrollFrame()
+function Addon:CreateItemScrollFrame(items)
     local widget = AceGUI:Create("ScrollFrame")
     AceEvent:Embed(widget)
 
@@ -996,7 +996,7 @@ function Addon:CreateItemScrollFrame()
     widget:PauseLayout()
 
     local children = {}
-    for _, item in pairs(self.items) do
+    for _, item in pairs(items) do
         table.insert(children, self:CreateItemGroup(item))
     end
     widget:AddChildren(unpack(children))
@@ -1037,7 +1037,7 @@ function Addon:CreateItemScrollFrame()
     return widget
 end
 
-function Addon:CreateLootWindow()
+function Addon:CreateLootWindow(items)
     local w = AceGUI:Create("Window")
     w:SetTitle("Loot")
     w:SetStatusTable(self.db.profile.windows.main)
@@ -1065,7 +1065,7 @@ function Addon:CreateLootWindow()
         widget:ReleaseChildren()
 
         if group == "items" then
-            local itemstab = self:CreateItemScrollFrame()
+            local itemstab = self:CreateItemScrollFrame(items)
             widget:AddChild(itemstab)
         elseif group == "sessions" then
             local sessionstab = self:CreateSessionHistoryScrollFrame()
