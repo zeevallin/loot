@@ -124,10 +124,12 @@ local ADDON_EVENTS = {
 
 -- Message events sent and received internally.
 local ADDON_MESSAGES = {
-    "ADDON_LOOT_UI_ACTION_SHOW_WINDOW", -- Prompts the addon to show the loot window.
+    "ADDON_LOOT_UI_ACTION_WINDOW_OPEN", -- Prompts the addon to show the loot window.
+    "ADDON_LOOT_UI_ACTION_WINDOW_CLOSE", -- Prompts the addon to close the loot window.
+    "ADDON_LOOT_UI_ACTION_WINDOW_TOGGLE", -- Prompts the addon to toggle the loot window.
     "ADDON_LOOT_UI_ACTION_SHOW_OPTIONS", -- Prompts the addon to show the options window.
     "ADDON_LOOT_UI_ACTION_DISCARD_ITEM", -- Prompts the addon to discard a shared item.
-    "ADDON_LOOT_UI_WINDOW_SHOW", -- Happens when the loot window is opened.
+    "ADDON_LOOT_UI_WINDOW_OPEN", -- Happens when the loot window is opened.
     "ADDON_LOOT_UI_WINDOW_CLOSE", -- Happens when the loot window is closed.
     "ADDON_LOOT_PLAYER_ROLL", -- Happens when a player rolls.
     "ADDON_LOOT_PLAYER_ITEM_ACQUIRED", -- Happens when a player loots an item.
@@ -169,7 +171,7 @@ function Addon:OnInitialize()
         icon = ADDON_BROKER_ICON_INACTIVE,
         OnClick = function(event, button)
             local options = {
-                ["LeftButton"] = function() self:SendMessage("ADDON_LOOT_UI_ACTION_SHOW_WINDOW") end, -- TODO: Implement toggle for showing and hiding the window.
+                ["LeftButton"] = function() self:SendMessage("ADDON_LOOT_UI_ACTION_WINDOW_TOGGLE") end,
                 ["RightButton"] = function() self:SendMessage("ADDON_LOOT_UI_ACTION_SHOW_OPTIONS") end
             }
             if options[button] then options[button]() end
@@ -433,8 +435,8 @@ function Addon:OnInitialize()
     self.profileframe = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("LootProfiles", "Profiles", "Loot")
     
     -- Register "loot" and "l" as commands to use in the WoW chat to display the loot window.
-    self:RegisterChatCommand("l", function() self:SendMessage("ADDON_LOOT_UI_ACTION_SHOW_WINDOW") end)
-    self:RegisterChatCommand("loot", function() self:SendMessage("ADDON_LOOT_UI_ACTION_SHOW_WINDOW") end)
+    self:RegisterChatCommand("l", function() self:SendMessage("ADDON_LOOT_UI_ACTION_WINDOW_OPEN") end)
+    self:RegisterChatCommand("loot", function() self:SendMessage("ADDON_LOOT_UI_ACTION_WINDOW_OPEN") end)
 
     self.icon:Register("Loot", self.broker, self.db.profile.minimap)
 end
@@ -465,9 +467,6 @@ function Addon:OnEnable()
         self.icon:Hide("Loot") -- Clean up just in case we have gotten ourselves into a dirty state
     end
 
-    -- Create the main addon window.
-    self:CreateLootWindow()
-
     -- Register all events
     for _, event in ipairs(ADDON_EVENTS) do
         self:RegisterEvent(event)    
@@ -487,7 +486,7 @@ end
 function Addon:OnDisable()
     -- Hide the main addon window.
     if self.window ~= nil then
-        self.window:Hide()
+        AceGUI:Release(self.window)
     end
 
     -- Make sure to always hide the minimap icon when the addon is disabled.
@@ -556,7 +555,7 @@ function Addon:BOSS_KILL(event, encounterID, encounterName)
     if self.is_in_party_or_raid and (encounter ~= nil) then
         if encounter[self.current_difficulty] then
             self:Debug("encounter configured to trigger loot sessions")
-            self:SendMessage("ADDON_LOOT_UI_ACTION_SHOW_WINDOW")
+            self:SendMessage("ADDON_LOOT_UI_ACTION_WINDOW_OPEN")
         else
             self:Debug("encounter not configured to trigger loot sessions (ignoring)")
         end
@@ -608,12 +607,31 @@ function Addon:CHAT_MSG_WHISPER(event, msg, name)
 end
 
 -- Used to show the main frame of the addon window.
-function Addon:ADDON_LOOT_UI_ACTION_SHOW_WINDOW(event)
-    if self.window ~= nil then
+function Addon:ADDON_LOOT_UI_ACTION_WINDOW_OPEN(event)
+    if self.window == nil then
         self:Debug("ui action to display main window")
+        self.window = self:CreateLootWindow()
         self.window:Show()
     else
         self:Debug("ui action to display main window failed because the frame has not been constructed")
+    end
+end
+
+function Addon:ADDON_LOOT_UI_ACTION_WINDOW_CLOSE(event)
+    if self.window ~= nil then
+        self.window:Hide()
+        self.window = nil
+        self:Debug("ui action to close main window")
+    else
+        self:Debug("ui action to close main window failed because the frame has not been constructed")
+    end
+end
+
+function Addon:ADDON_LOOT_UI_ACTION_WINDOW_TOGGLE(event)
+    if self.window == nil then
+        self:SendMessage("ADDON_LOOT_UI_ACTION_WINDOW_OPEN")
+    else
+        self:SendMessage("ADDON_LOOT_UI_ACTION_WINDOW_CLOSE")
     end
 end
 
@@ -642,7 +660,7 @@ function Addon:ADDON_LOOT_UI_ACTION_DISCARD_ITEM(event, item)
 end
 
 -- Happens when the primary loot window opens.
-function Addon:ADDON_LOOT_UI_WINDOW_SHOW(event, window)
+function Addon:ADDON_LOOT_UI_WINDOW_OPEN(event, window)
     self:Debug("primary window is showing")
     self.broker.icon = ADDON_BROKER_ICON_ACTIVE
 end
@@ -1005,11 +1023,12 @@ function Addon:CreateLootWindow()
     w:SetHeight(500)
 
     w:SetCallback("OnShow", function(widget)
-        self:SendMessage("ADDON_LOOT_UI_WINDOW_SHOW", widget)
+        self:SendMessage("ADDON_LOOT_UI_WINDOW_OPEN", widget)
     end)
 
     w:SetCallback("OnClose", function(widget)
         self:SendMessage("ADDON_LOOT_UI_WINDOW_CLOSE", widget)
+        AceGUI:Release(widget)
     end)
 
     local tab =  AceGUI:Create("TabGroup")
@@ -1044,9 +1063,8 @@ function Addon:CreateLootWindow()
     tab:SelectTab("items")
     
     w:AddChild(tab)
-
-    w:Hide()
-    self.window = w
+    
+    return w
 end
 
 function Addon:CreateSessionRollGroup(player, value)
