@@ -1139,7 +1139,7 @@ function Addon:CreateSessionStatusButton(session)
     local btn = AceGUI:Create("Button")
     AceEvent:Embed(btn)
 
-    btn:SetText("10 sec")
+    btn:SetText(string.format("%s sec", session.duration))
     btn:SetWidth(120)
     btn:SetDisabled(true)
 
