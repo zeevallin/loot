@@ -364,9 +364,9 @@ function Addon:OnInitialize()
     end
 
     local instances = {
-        enable = {
-            name = "Enable Automatic Sessions",
-            desc = "Automatically start a loot session after a raid encounter has been successfully completed.",
+        auto = {
+            name = "Enable automatic sessions on boss kills",
+            desc = "Automatically start a loot session after a raid encounter has been successfully completed. This will open the loot window and announce to the raid that loot can be whispered to you.",
             descStyle = "inline",
             width = "full",
             type = "toggle",
