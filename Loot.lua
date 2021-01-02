@@ -465,6 +465,12 @@ function Addon:OnInitialize()
     self:RegisterChatCommand("loot", function() self:SendMessage("ADDON_LOOT_UI_ACTION_WINDOW_OPEN") end)
 
     self.icon:Register("Loot", self.broker, self.db.profile.minimap)
+
+    if self.db.profile.enable then
+        self:Enable()
+    else
+        self:Disable()
+    end
 end
 
 function Addon:OnEnable()
