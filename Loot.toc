@@ -2,7 +2,7 @@
 ## Title: Loot
 ## Notes: Ease the process of distributing personal loot in a raid or dungeon setting
 ## Author: Zee (https://github.com/zeeraw)
-## Version: v9.0.2-stable.5
+## Version: v9.0.2-stable.7
 ## SavedVariables: LootDB
 ## SavedVariablesPerCharacter: LootPerCharacterDB
 ## DefaultState: enabled
