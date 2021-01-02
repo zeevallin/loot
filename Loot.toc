@@ -1,6 +1,6 @@
 ## Interface: 90002
-## Title: "Loot"
-## Notes: "Ease the process of distributing personal loot in a raid or dungeon setting"
+## Title: Loot
+## Notes: Ease the process of distributing personal loot in a raid or dungeon setting
 ## Author: Zee (https://github.com/zeeraw)
 ## Version: v9.0.2-stable.5
 ## SavedVariables: LootDB
